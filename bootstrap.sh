@@ -26,12 +26,10 @@ apt-get install -y apache2 libapache2-mod-fastcgi
 httpd=$(cat <<EOF
 ServerName localhost
 RewriteEngine on
-RewriteCond %{HTTPS} off
-RewriteRule (.*) https://{SERVER_NAME/$1 [R,L]
 EOF
 )
 
-echo $httpd > /etc/apache2/httpd.conf 
+echo $httpd > /etc/apache2/conf-available/httpd.conf 
 
 cert=$(cat <<EOF
 -----BEGIN CERTIFICATE-----
@@ -97,41 +95,67 @@ chmod 400 /etc/apache2/server.crt
 
 # Setup hosts file
 VHOST=$(cat <<EOF
-<VirtualHost *:443>
+<IfModule mod_ssl.c>
+  <VirtualHost _default_:443>
+    DocumentRoot "/var/www/html"
+    ServerName localhost
+    SSLEngine on
+    SSLCertificateFile /etc/apache2/server.crt
+    SSLCertificateKeyFile /etc/apache2/server.key
+    <FilesMatch "\.(cgi|shtml|phtml|php)$">
+	SSLOptions +StdEnvVars
+    </FilesMatch>
+    <Directory "/var/www/html">
+        AllowOverride All
+	SSLOptions +StdEnvVars
+    </Directory>
+  </VirtualHost>
+</IfModule>
+EOF
+)
+
+echo "${VHOST}" > /etc/apache2/sites-available/default-ssl.conf
+
+VHOST1=$(cat <<EOF
+<VirtualHost *:80>
   DocumentRoot "/var/www/html"
   ServerName localhost
   <Directory "/var/www/html">
     AllowOverride All
   </Directory>
-  
-  RewriteEngine on
-  RewriteRule ^ http://%{SERVER_NAME}%{REQUEST_URI} [END,QSA,R=permanent]
-  
-  SSLEngine on
-  SSLOptions +StrictRequire
-  SSLCertificateFile /etc/apache2/server.crt
-  SSLCertificateKeyFile /etc/apache2/server.key
+  Redirect permanent / https://localhost
 </VirtualHost>
 EOF
 )
 
-echo "${VHOST}" > /etc/apache2/sites-enabled/000-default.conf
-
-#VHOST1=$(cat <<EOF
-#<VirtualHost *:80>
-#  DocumentRoot "/var/www/html"
-#  ServerName localhost
-#  <Directory "/var/www/html">
-#    AllowOverride All
-#  </Directory>
-#</VirtualHost>
-#EOF
-#)
-
-#echo "${VHOST1}" > /etc/apache2/sites-enabled/000-default-ssl.conf
+echo "${VHOST1}" > /etc/apache2/sites-available/000-default.conf
 
 
 # Loading needed modules to make apache work
-#a2ensite $VHOST
-a2enmod actions fastcgi rewrite
+a2enmod actions fastcgi rewrite ssl
 service apache2 reload
+
+# Install memcached 
+apt-get install memcached
+
+memcache=$(cat <<EOF
+-d
+
+logfile /var/log/memcached.log
+
+-m 64
+
+-p 11211
+
+-u memcache
+
+-l 127.0.0.1
+
+-c 1024
+EOF
+)
+
+echo $memcache > /etc/memcached.conf
+
+apt-get install python python-pip
+
