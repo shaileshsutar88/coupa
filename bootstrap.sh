@@ -15,17 +15,22 @@ EOF
 # Updating packages
 apt-get update
 
+sudo sed -ie 's/^mesg/#mesg/' /root/.profile
+
 # ---------------------------------------
 #          Apache Setup
 # ---------------------------------------
 
 # Installing Packages
-apt-get install -y apache2 libapache2-mod-fastcgi
+apt-get install -y apache2 libapache2-mod-fastcgi git-core
+apt-get install -y php7.0 libapache2-mod-php7.0 php7.0-cli php7.0-common php7.0-mbstring php7.0-gd php7.0-intl php7.0-xml php7.0-mysql php7.0-mcrypt php7.0-zip php-pecl-http php-pecl-http-dev
 
 # Add ServerName to httpd.conf
 httpd=$(cat <<EOF
-ServerName localhost
+ServerName suffire
 RewriteEngine on
+RewriteCond     %{SERVER_PORT} ^80$
+RewriteRule     ^(.*)$ https://%{SERVER_NAME}%{REQUEST_URI} [L,R]
 EOF
 )
 
@@ -98,7 +103,7 @@ VHOST=$(cat <<EOF
 <IfModule mod_ssl.c>
   <VirtualHost _default_:443>
     DocumentRoot "/var/www/html"
-    ServerName localhost
+    ServerName suffire.com
     SSLEngine on
     SSLCertificateFile /etc/apache2/server.crt
     SSLCertificateKeyFile /etc/apache2/server.key
@@ -119,11 +124,11 @@ echo "${VHOST}" > /etc/apache2/sites-available/default-ssl.conf
 VHOST1=$(cat <<EOF
 <VirtualHost *:80>
   DocumentRoot "/var/www/html"
-  ServerName localhost
+  ServerName suffire.com
   <Directory "/var/www/html">
     AllowOverride All
   </Directory>
-  Redirect permanent / https://localhost
+  Redirect permanent / http://suffire.com:443
 </VirtualHost>
 EOF
 )
@@ -156,6 +161,33 @@ EOF
 )
 
 echo $memcache > /etc/memcached.conf
+rm -rf /var/www/html/*
+git clone https://github.com/elijaa/phpmemcachedadmin.git /var/www/html
+cp -r /var/www/html/Config/Memcache.sample.php /var/www/html/Config/Memcache.php
 
-apt-get install python python-pip
+chmod -R 0777 /var/www/html/Config /var/www/html/Temp
 
+mkdir cron
+cron1=$(cat <<EOF
+<?php
+  $mc = new Memcached();
+  $mc->addServer("/opt/memcached/run/username/memcached-1.sock", 0) or die ("Unable to connect");
+  echo "Server version:<pre>";
+  print_r($mc->getVersion());
+  echo "</pre>";
+  $tmp = new stdClass;
+  $tmp->str_attr = "test";
+  $tmp->int_attr = rand(0,1000);
+  $mc->set("testkey", $tmp, 10) or die ("Unable to save data in the cache");
+  $result = $mc->get("testkey");
+  echo "Data from the cache:<pre>";
+  var_dump($result);
+  echo "</pre>";
+?>
+EOF
+)
+
+echo $cron1 > /home/ubuntu/cron/memcache-cron.php
+chmod +x /home/ubuntu/cron/memcache-cron.php 
+l0="*/1 * * * * /usr/bin/php /home/ubuntu/cron/memcache-cron.php"
+(crontab -u ubuntu -l; echo "$l0" ) | crontab -u ubuntu - 
