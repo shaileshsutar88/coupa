@@ -1,0 +1,15 @@
+<?php
+  $mc = new Memcached();
+  $mc->addServer("/opt/memcached/run/username/memcached-1.sock", 0) or die ("Unable to connect");
+  echo "Server version:<pre>";
+  print_r($mc->getVersion());
+  echo "</pre>";
+  $tmp = new stdClass;
+  $tmp->str_attr = "test";
+  $tmp->int_attr = rand(0,1000);
+  $mc->set("testkey", $tmp, 10) or die ("Unable to save data in the cache");
+  $result = $mc->get("testkey");
+  echo "Data from the cache:<pre>";
+  var_dump($result);
+  echo "</pre>";
+?>

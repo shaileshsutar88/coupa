@@ -1,0 +1,6 @@
+---
+
+- include: install-apache2.yml
+- include: make-config.yml
+- include: install-memcached.yml
+- include: git-clone.yml

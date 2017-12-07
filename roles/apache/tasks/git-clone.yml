@@ -1,0 +1,26 @@
+- name: "Delete /var/www/html folder"
+  shell: /bin/rm -rf /var/www/html
+
+- name: "application clone"
+  git:
+    repo: https://github.com/elijaa/phpmemcachedadmin.git
+    dest: /var/www/html
+
+- name: "copy phpconfig file"
+  shell: "{{ item}}"
+  with_items:
+    - /bin/cp -r /var/www/html/Config/Memcache.sample.php /var/www/html/Config/Memcache.php
+    - /bin/chmod -R 0777 /var/www/html/Config /var/www/html/Temp
+
+- name: "copy memcache-cron php file"
+  copy: src={{ item.src }} dest={{ item.dest }} owner={{ item.owner }} group={{ item.group }} mode={{ item.mode }}
+  with_items:
+    - { src: '../files/memcache-cron', dest: '/home/ubuntu/cron/memcache-cron.php', owner: 'root', group: 'root', mode: '0755' }
+
+- cron:
+    name: "Setting up cron for memcache stats"
+    minute: "*/1"
+    hour: "*"
+    job: "/home/ubuntu/cron/memcache-cron.php"
+    weekday: "*"
+    state: present

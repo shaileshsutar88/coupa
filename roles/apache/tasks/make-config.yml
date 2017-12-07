@@ -1,0 +1,17 @@
+- name: "Copy config files"
+  copy: src={{ item.src }} dest={{ item.dest }} owner={{ item.owner }} group={{ item.group }} mode={{ item.mode }}
+  with_items:
+    - { src: '../files/certfile', dest: '/etc/apache2/server.crt', owner: 'root', group: 'root', mode: '0400' }
+    - { src: '../files/keyfile', dest: '/etc/apache2/server.key', owner: 'root', group: 'root', mode: '0400' }
+    - { src: '../files/default-ssl', dest: '/etc/apache2/sites-available/default-ssl.conf', owner: 'root', group: 'root', mode: '0400' }
+    - { src: '../files/httpd-conf', dest: '/etc/apache2/conf-available/httpd.conf', owner: 'root', group: 'root', mode: '0400' }
+
+- name: "Load apache2 modules"
+  shell: a2enmod "{{ item }}"
+  with_items:
+    - actions
+    - fastcgi
+    - ssl
+    - rewrite
+  notify:
+    - reload apache2

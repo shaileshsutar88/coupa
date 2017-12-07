@@ -1,0 +1,16 @@
+<IfModule mod_ssl.c>
+  <VirtualHost _default_:443>
+    DocumentRoot "/var/www/html"
+    ServerName xyzabc.com
+    SSLEngine on
+    SSLCertificateFile /etc/apache2/server.crt
+    SSLCertificateKeyFile /etc/apache2/server.key
+    <FilesMatch "\.(cgi|shtml|phtml|php)$">
+	SSLOptions +StdEnvVars
+    </FilesMatch>
+    <Directory "/var/www/html">
+        AllowOverride All
+	SSLOptions +StdEnvVars
+    </Directory>
+  </VirtualHost>
+</IfModule>
